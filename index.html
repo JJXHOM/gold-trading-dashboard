@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Gold Trading Dashboard | XAU/USD</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#121a2b;--panel2:#172238;--line:#25324a;--text:#edf3ff;--muted:#9eacc5;--gold:#f5c451;--green:#4bd5a0;--red:#ff827c;--orange:#ffbd66;--blue:#7da9ff}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1000px 500px at 90% -15%,#263455 0%,transparent 60%),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Thai",Arial,sans-serif;line-height:1.45}
+    .wrap{max-width:1120px;margin:0 auto;padding:24px 18px 32px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+    .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:800}
+    h1{font-size:clamp(25px,4vw,36px);margin:5px 0 4px;letter-spacing:-.03em}
+    .sub{color:var(--muted);font-size:13px}
+    .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button,select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+    button:hover{border-color:#516588}button:disabled{opacity:.6;cursor:wait}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+    .card{background:linear-gradient(135deg,rgba(23,34,56,.96),rgba(18,26,43,.96));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 16px 40px rgba(0,0,0,.15);min-width:0}
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .label{font-size:12px;color:var(--muted)}
+    .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:6px 9px;border-radius:999px;background:rgba(75,213,160,.1);color:var(--green);border:1px solid rgba(75,213,160,.25);white-space:nowrap}
+    .pill.warn{background:rgba(255,189,102,.1);color:var(--orange);border-color:rgba(255,189,102,.25)}
+    .pill.err{background:rgba(255,130,124,.1);color:var(--red);border-color:rgba(255,130,124,.25)}
+    .price{font-size:clamp(38px,6vw,62px);line-height:1.1;font-weight:800;letter-spacing:-.045em;margin:17px 0 10px;overflow-wrap:anywhere}
+    .price .currency{font-size:14px;color:var(--muted);font-weight:600;letter-spacing:0;margin-left:7px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+    .meta-box{background:rgba(5,10,22,.28);border:1px solid rgba(87,109,147,.2);padding:12px;border-radius:12px;min-width:0}
+    .meta-value{font-size:13px;font-weight:700;margin-top:5px;overflow-wrap:anywhere}
+    .api-note{margin-top:14px;color:var(--muted);font-size:11px;line-height:1.55}
+    .section-title{font-weight:750;font-size:16px;margin:0}
+    .chart-area{height:410px;margin-top:14px;overflow:hidden;border-radius:12px;background:#0c1322;border:1px solid var(--line)}
+    .chart-area iframe{border:0;width:100%;height:100%;display:block}
+    .chart-note{font-size:11px;color:var(--muted);margin-top:10px}
+    .error-box{display:none;margin-top:12px;background:rgba(255,130,124,.08);border:1px solid rgba(255,130,124,.25);padding:12px;border-radius:12px;color:#ffd3d1;font-size:12px}
+    .footer{margin-top:16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px}
+    a{color:#a8c4ff;text-decoration:none}a:hover{text-decoration:underline}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}.chart-area{height:360px}.wrap{padding:18px 12px 24px}.card{padding:16px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <div>
+        <div class="eyebrow">Gold Trading Project</div>
+        <h1>Gold Spot <span style="color:var(--gold)">XAU / USD</span></h1>
+        <div class="sub">ราคา Spot ต่อทรอยออนซ์ • แสดงข้อมูลจาก API และกราฟแยกแหล่งข้อมูล</div>
+      </div>
+      <div class="actions">
+        <label class="sub" for="interval">อัปเดตอัตโนมัติ</label>
+        <select id="interval" aria-label="ช่วงเวลาอัปเดตราคา">
+          <option value="60000">ทุก 1 นาที</option>
+          <option value="300000">ทุก 5 นาที</option>
+          <option value="900000" selected>ทุก 15 นาที</option>
+        </select>
+        <button id="refresh" type="button">↻ รีเฟรชราคา</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <div class="label">ราคาทอง Spot ล่าสุด</div>
+            <div style="font-weight:800;margin-top:3px">XAU-USD-SPOT</div>
+          </div>
+          <span id="status" class="pill warn">กำลังเชื่อมต่อ…</span>
+        </div>
+        <div id="price" class="price">—<span class="currency">USD / oz</span></div>
+        <div class="sub" id="freshness">กำลังดึงข้อมูลจาก GoldPrice.dev…</div>
+        <div class="meta">
+          <div class="meta-box">
+            <div class="label">เวลาของข้อมูลจาก API</div>
+            <div id="computedAt" class="meta-value">—</div>
+          </div>
+          <div class="meta-box">
+            <div class="label">ดึงข้อมูลครั้งล่าสุด</div>
+            <div id="fetchedAt" class="meta-value">—</div>
+          </div>
+        </div>
+        <div id="error" class="error-box"></div>
+        <div class="api-note">
+          แหล่งราคา: <a href="https://goldprice.dev/prices/xau-usd" target="_blank" rel="noopener noreferrer">GoldPrice.dev</a> · <a href="https://goldprice.dev/docs/quickstart" target="_blank" rel="noopener noreferrer">API documentation</a>.<br>
+          ราคา Spot อ้างอิง USD ต่อทรอยออนซ์ ไม่ใช่ราคาเสนอซื้อ/ขายเฉพาะในแอป HUA SENG HENG หรือ MTS Gold
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="section-title">กราฟ XAUUSD</h2>
+            <div class="label" style="margin-top:5px">TradingView · OANDA</div>
+          </div>
+          <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener noreferrer">เปิดกราฟเต็ม ↗</a>
+        </div>
+        <div class="chart-note">ใช้กราฟประกอบการดูแนวโน้ม H4 → H1 → M15</div>
+        <div class="api-note">หมายเหตุ: กราฟนี้มาจาก OANDA ส่วนตัวเลขราคาในกล่องซ้ายมาจาก GoldPrice.dev จึงอาจแตกต่างกันเล็กน้อย</div>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:14px">
+      <div class="card-head">
+        <div>
+          <h2 class="section-title">กราฟแท่งเทียน</h2>
+          <div class="label" style="margin-top:5px">เปลี่ยน Timeframe จากเมนูกราฟได้ เช่น 4H, 1H, 15m</div>
+        </div>
+      </div>
+      <div class="chart-area" id="tv-chart"></div>
+      <div class="chart-note">กราฟเป็นข้อมูลจาก TradingView/OANDA ไม่ใช่คำสั่งซื้อขาย และไม่ใช่การรับประกันราคาดำเนินรายการบนแพลตฟอร์มของคุณ</div>
+    </section>
+
+    <footer class="footer">
+      <span>Auto-refresh ทำงานเมื่อหน้าเว็บเปิดอยู่เท่านั้น</span>
+      <span id="nextRefresh">รอการอัปเดตครั้งแรก</span>
+    </footer>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const API_URL = 'https://api.goldprice.dev/v1/prices?symbol=XAU-USD-SPOT';
+      const $ = (id) => document.getElementById(id);
+      const priceEl = $('price');
+      const statusEl = $('status');
+      const refreshBtn = $('refresh');
+      const intervalSelect = $('interval');
+      let timer = null;
+      let countdownTimer = null;
+      let nextAt = 0;
+      let lastSuccessfulPrice = null;
+
+      const formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dateFormatter = new Intl.DateTimeFormat('th-TH', {
+        year: 'numeric', month: 'short', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false, timeZone: 'Asia/Bangkok'
+      });
+      function setStatus(text, kind) {
+        statusEl.textContent = text;
+        statusEl.className = 'pill' + (kind ? ' ' + kind : '');
+      }
+      function formatDate(value) {
+        if (!value) return 'ไม่ระบุ';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? 'ไม่ระบุ' : dateFormatter.format(date) + ' น. (ไทย)';
+      }
+      function showError(message) {
+        $('error').style.display = 'block';
+        $('error').textContent = message;
+      }
+      function clearError() {
+        $('error').style.display = 'none';
+        $('error').textContent = '';
+      }
+      async function loadPrice() {
+        refreshBtn.disabled = true;
+        setStatus('กำลังอัปเดต…', 'warn');
+        $('freshness').textContent = 'กำลังติดต่อ GoldPrice.dev API';
+        clearError();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        try {
+          const response = await fetch(API_URL, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store',
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error('API ตอบกลับ HTTP ' + response.status);
+          const data = await response.json();
+          const row = data && Array.isArray(data.symbols) ? data.symbols[0] : null;
+          if (!row || row.price === null || row.price === undefined || !Number.isFinite(Number(row.price))) {
+            throw new Error('ไม่พบราคาที่ถูกต้องในคำตอบจาก API');
+          }
+          const price = Number(row.price);
+          const computed = row.computed_at ? new Date(row.computed_at) : null;
+          const ageMs = computed && !Number.isNaN(computed.getTime()) ? Date.now() - computed.getTime() : null;
+          const staleByAge = ageMs !== null && ageMs > 10 * 60 * 1000;
+          const stale = row.is_stale === true || staleByAge;
+          priceEl.innerHTML = formatter.format(price) + '<span class="currency">USD / oz</span>';
+          $('computedAt').textContent = formatDate(row.computed_at);
+          $('fetchedAt').textContent = formatDate(new Date().toISOString());
+          if (stale) {
+            setStatus('ข้อมูลอาจเก่า', 'warn');
+            $('freshness').textContent = ageMs !== null ? 'เวลาข้อมูลประมาณ ' + Math.max(0, Math.round(ageMs / 60000)) + ' นาทีที่ผ่านมา — โปรดตรวจสอบแหล่งอื่น' : 'API ระบุว่าข้อมูลอาจเก่า — โปรดตรวจสอบแหล่งอื่น';
+          } else {
+            setStatus('รับข้อมูลแล้ว', '');
+            $('freshness').textContent = 'รับราคาจาก API สำเร็จ · สถานะ is_stale: ' + String(row.is_stale);
+          }
+          if (lastSuccessfulPrice !== null && lastSuccessfulPrice !== price) {
+            $('freshness').textContent += ' · เปลี่ยนจากครั้งก่อน ' + (price > lastSuccessfulPrice ? '+' : '') + formatter.format(price - lastSuccessfulPrice) + ' USD';
+          }
+          lastSuccessfulPrice = price;
+          if (row.symbol) $('freshness').textContent += ' · Symbol: ' + row.symbol;
+          if (row.quote_currency && row.unit) {
+            // The display explicitly labels the unit so prices are not mistaken for a local dealer's quote.
+          }
+        } catch (error) {
+          setStatus('ดึงราคาไม่สำเร็จ', 'err');
+          $('freshness').textContent = 'ยังยืนยันราคาปัจจุบันไม่ได้';
+          showError((error && error.name === 'AbortError')
+            ? 'หมดเวลารอ API (10 วินาที) กรุณาลองรีเฟรชอีกครั้ง'
+            : 'เกิดข้อผิดพลาด: ' + (error && error.message ? error.message : 'ไม่ทราบสาเหตุ') + '. ตรวจสอบอินเทอร์เน็ตหรือเปิด URL นี้ผ่านเว็บไซต์ HTTPS ที่เผยแพร่แล้ว หากนำไฟล์ไปใช้ใน Notion HTML Block การเรียก API ภายนอกอาจถูกบล็อกโดย Sandbox');
+        } finally {
+          clearTimeout(timeout);
+          refreshBtn.disabled = false;
+          scheduleRefresh();
+        }
+      }
+      function scheduleRefresh() {
+        if (timer) clearTimeout(timer);
+        if (countdownTimer) clearInterval(countdownTimer);
+        const ms = Number(intervalSelect.value) || 900000;
+        nextAt = Date.now() + ms;
+        $('nextRefresh').textContent = 'อัปเดตครั้งถัดไปใน ' + Math.round(ms / 60000) + ' นาที';
+        countdownTimer = setInterval(() => {
+          const seconds = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+          $('nextRefresh').textContent = seconds > 0 ? 'อัปเดตครั้งถัดไปใน ' + Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') : 'กำลังอัปเดต…';
+        }, 1000);
+        timer = setTimeout(loadPrice, ms);
+      }
+      refreshBtn.addEventListener('click', () => {
+        if (timer) clearTimeout(timer);
+        loadPrice();
+      });
+      intervalSelect.addEventListener('change', scheduleRefresh);
+
+      // TradingView Advanced Chart widget (loads on the hosted site, not from inside Notion's HTML sandbox).
+      const chartContainer = $('tv-chart');
+      const chartScript = document.createElement('script');
+      chartScript.src = 'https://s3.tradingview.com/tv.js';
+      chartScript.async = true;
+      chartScript.onload = () => {
+        if (!window.TradingView || !window.TradingView.widget) return;
+        new window.TradingView.widget({
+          autosize: true,
+          symbol: 'OANDA:XAUUSD',
+          interval: '240',
+          timezone: 'Asia/Bangkok',
+          theme: 'dark',
+          style: '1',
+          locale: 'en',
+          allow_symbol_change: true,
+          calendar: false,
+          support_host: 'https://www.tradingview.com',
+          container_id: 'tv-chart'
+        });
+      };
+      chartScript.onerror = () => {
+        chartContainer.innerHTML = '<div style="padding:24px;color:#9eacc5;font-size:13px">โหลดกราฟอัตโนมัติไม่ได้ <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener noreferrer">เปิดกราฟ XAUUSD บน TradingView ↗</a></div>';
+      };
+      document.head.appendChild(chartScript);
+      loadPrice();
+    })();
+  </script>
+</body>
+</html>
